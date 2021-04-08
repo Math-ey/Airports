@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="icon" type="image/x-icon" href="./assets/img/plane-icon.png">
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+        integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+
+
+
+    <link rel="stylesheet" href="./css/styles.css">
+    <link rel="stylesheet" href="./css/simple-siderbar.css">
+    <link rel="stylesheet" href="./dist/bootstrap-4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./dist/leaflet-1.7.1/leaflet.css">
+    <link rel="stylesheet" href="./dist/leaflet.awesome-markers/leaflet.awesome-markers.css">
+    <script src="./dist/leaflet-1.7.1/leaflet.js"></script>
+
+    <title>Airtports</title>
+</head>
+
+<body>
+
+    <div class="d-flex" id="wrapper">
+
+        <!-- Sidebar -->
+        <div class="bg-light border-right" id="sidebar-wrapper">
+            <div class="sidebar-heading">
+                <a href="#"> <img src="./assets/img/plane-icon.png" alt="" width="30" height="30"> Airports</a>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="#" class="list-group-item list-group-item-action bg-light" onClick="addLayer('all-airports-layer')">Show All
+                    Airports</a>
+                <a href="#" class="list-group-item list-group-item-action bg-light" id="airportSearch"
+                    data-toggle="modal" data-target="#airportSearchModal">Aiport Search</a>
+                <a href="#" class="list-group-item list-group-item-action bg-light" id="aircraftRange"
+                    data-toggle="modal" data-target="#aircraftRangeModal">Aircraft Distance Meter</a>
+                <a href="#" class="list-group-item list-group-item-action bg-light" id="aviationWeather"
+                    data-toggle="modal" data-target="#aviationWeatherModal">Aviaton Weater</a>
+                <a href="#" class="list-group-item list-group-item-action bg-light" id="clear-button">Clear Map</a>
+            </div>
+        </div>
+        <!-- /#sidebar-wrapper -->
+
+        <!-- Page Content -->
+        <div id="page-content-wrapper">
+
+            <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
+                <button class="btn btn-primary" id="menu-toggle">Toggle Menu</button>
+
+                <button class="navbar-toggler" type="button" data-toggle="collapse"
+                    data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
+                    aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                </div>
+            </nav>
+
+            <div class="container-fluid">
+                <div id="mapid"></div>
+            </div>
+        </div>
+        <!-- /#page-content-wrapper -->
+
+    </div>
+
+
+    <div class="modal fade" id="airportSearchModal" tabindex="-1" role="dialog"
+        aria-labelledby="airportSearchModalTitle" aria-hidden="true" data-backdrop="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="airportSearchModalTitle">Airport search</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="modal-body">
+                    <form>
+                        <div class="form-group">
+                            <label for="airportInput">Airport name</label>
+                            <input type="text" class="form-control" id="airportInput" aria-describedby="emailHelp"
+                                placeholder="Enter airport name">
+                        </div>
+                        <button type="button" class="btn btn-primary" id="airport-search-button"
+                            onClick="airportSearchClick(airportInput.value)">Search</button>
+                    </form>
+                    <div id="airportsDiv">
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="aviationWeatherModal" tabindex="-1" role="dialog"
+        aria-labelledby="aviationWeatherModalTitle" aria-hidden="true" data-backdrop="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="aviationWeatherModalTitle">Aviation weather</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="aviationWeatherModalBody">
+                    <form>
+                        <div class="form-group">
+                            <label for="sourceAirportSelect2">Source airport</label>
+                            <a href="#" onclick="loadAirportsToSelect('abcde', '#sourceAirportSelect2')">a-e</a>
+                            <a href="#" onclick="loadAirportsToSelect('fghij', '#sourceAirportSelect2')">f-j</a>
+                            <a href="#" onclick="loadAirportsToSelect('klmno', '#sourceAirportSelect2')">k-o</a>
+                            <a href="#" onclick="loadAirportsToSelect('pqrst', '#sourceAirportSelect2')">p-t</a>
+                            <a href="#" onclick="loadAirportsToSelect('uvwxyz', '#sourceAirportSelect2')">u-z</a>
+                            <select id="sourceAirportSelect2" onchange='validateForm2()' class="form-control" disabled
+                                required>
+                                <option value="" disabled selected>Select your option</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="destinationAirportSelect2">Destination airport</label>
+                            <a href="#" onclick="loadAirportsToSelect('abcde', '#destinationAirportSelect2')">a-e</a>
+                            <a href="#" onclick="loadAirportsToSelect('fghij', '#destinationAirportSelect2')">f-j</a>
+                            <a href="#" onclick="loadAirportsToSelect('klmno', '#destinationAirportSelect2')">k-o</a>
+                            <a href="#" onclick="loadAirportsToSelect('pqrst', '#destinationAirportSelect2')">p-t</a>
+                            <a href="#" onclick="loadAirportsToSelect('uvwxyz', '#destinationAirportSelect2')">u-z</a>
+                            <select id="destinationAirportSelect2" onchange='validateForm2()' class="form-control"
+                                disabled required>
+                                <option value="" disabled selected>Select your option</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn btn-primary" id="weatherButton"
+                            onClick="weatherClicked(sourceAirportSelect2.options[sourceAirportSelect2.selectedIndex].value, destinationAirportSelect2.options[destinationAirportSelect2.selectedIndex].value)">Show
+                            weather
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="aircraftRangeModal" tabindex="-1" role="dialog"
+        aria-labelledby="aircraftRangeModalTitle" aria-hidden="true" data-backdrop="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="aircraftRangeModalTitle">Aircraft range</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="range-modal-body">
+                    <form>
+                        <div class="form-group">
+                            <label for="sourceAirportSelect">Source airport</label>
+                            <a href="#" onclick="loadAirportsToSelect('abcde', '#sourceAirportSelect')">a-e</a>
+                            <a href="#" onclick="loadAirportsToSelect('fghij', '#sourceAirportSelect')">f-j</a>
+                            <a href="#" onclick="loadAirportsToSelect('klmno', '#sourceAirportSelect')">k-o</a>
+                            <a href="#" onclick="loadAirportsToSelect('pqrst', '#sourceAirportSelect')">p-t</a>
+                            <a href="#" onclick="loadAirportsToSelect('uvwxyz', '#sourceAirportSelect')">u-z</a>
+                            <select id="sourceAirportSelect" onchange='validateForm()' class="form-control" disabled
+                                required>
+                                <option value="" disabled selected>Select your option</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="destinationAirportSelect">Destination airport</label>
+                            <a href="#" onclick="loadAirportsToSelect('abcde', '#destinationAirportSelect')">a-e</a>
+                            <a href="#" onclick="loadAirportsToSelect('fghij', '#destinationAirportSelect')">f-j</a>
+                            <a href="#" onclick="loadAirportsToSelect('klmno', '#destinationAirportSelect')">k-o</a>
+                            <a href="#" onclick="loadAirportsToSelect('pqrst', '#destinationAirportSelect')">p-t</a>
+                            <a href="#" onclick="loadAirportsToSelect('uvwxyz', '#destinationAirportSelect')">u-z</a>
+                            <select id="destinationAirportSelect" onchange='validateForm()' class="form-control"
+                                disabled required>
+                                <option value="" disabled selected>Select your option</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="airplaneSelect">Airplane</label>
+                            <select id="airplaneSelect" class="form-control" onChange="airplaneClick()" disabled>
+                                <option value="" disabled selected>Choose airplane</option>
+                            </select>
+                        </div>
+                        <div id="airplaneDiv" hidden>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <img src="" class="image">
+                                </div>
+                                <div class="col-md-6">
+                                    <p>Name:</p>
+                                    <p> Max speed: km/h</p>
+                                    <p>Fuel consumption: kg/h</p>
+                                    <div class="form-group">
+                                        <label for="fuelLoadInput">Fuel load</label>
+                                        <input type="text" class="form-control" id="fuelLoadInput"
+                                            placeholder="Enter fuel load" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-primary" id="rangeButton"
+                            onClick="rangeClicked(sourceAirportSelect.options[sourceAirportSelect.selectedIndex].value, destinationAirportSelect.options[destinationAirportSelect.selectedIndex].value)">Search</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./dist/jquery-3.6.0/jquery.min.js"></script>
+    <script src="./js/jquery.twbsPagination.min.js"></script>
+    <script src="./dist/bootstrap-4.3.1/js/bootstrap.min.js"></script>
+    <script src="./dist/leaflet-1.7.1/leaflet.js"></script>
+    <script src="./dist/leaflet.awesome-markers/leaflet.awesome-markers.js"></script>
+    <script src="./js/scripts.js"></script>
+
+    <!-- Menu Toggle Script -->
+    <script>
+        $("#menu-toggle").click(function (e) {
+            e.preventDefault();
+            $("#wrapper").toggleClass("toggled");
+        });
+    </script>
+</body>
+
+</html>
