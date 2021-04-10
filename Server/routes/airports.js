@@ -17,18 +17,20 @@ const featureCollectionSelect = `
             )
         FROM airport_data) AS features`;
 
+const defaultAirports =  `(LOWER(p.name) LIKE LOWER('%airfield%') OR LOWER(p.name) LIKE LOWER('%airport%'))`;
+
 router.get('/', (req, res) => {
     const query = `
     WITH airport_data AS (
         SELECT osm_id AS id, name AS title, way 
         FROM planet_osm_polygon AS p 
-        WHERE p.aeroway LIKE 'aerodrome' AND (LOWER(p.name) LIKE '%airport%' OR LOWER(p.name) LIKE '%airfield%')
+        WHERE p.aeroway LIKE 'aerodrome' AND ${defaultAirports}
     )
     ${featureCollectionSelect}
     `;
 
     db.query(query, (err, result) => {
-        if(err){
+        if (err) {
             return res.status(400).json(err);
         }
         res.json(result.rows[0]);
@@ -37,33 +39,43 @@ router.get('/', (req, res) => {
 
 
 router.get('/names', (req, res) => {
-    let searchVal = req.query.searchVal;
-    let likeQuery;
-    if(!searchVal){
-        likeQuery = `(LOWER(p.name) LIKE LOWER('%airfield%') OR LOWER(p.name) LIKE LOWER('%airport%'))`
-    }
-    else {
-        searchVal = decodeURI(searchVal);
-        likeQuery = `(LOWER(p.name) LIKE LOWER('%${searchVal}%'))`
-    }
+    let {searchVal, startingChars } = req.query;
 
     let query = `
         SELECT osm_id AS id, name AS title 
-        FROM planet_osm_polygon as p 
-        WHERE p.aeroway LIKE 'aerodrome' AND ${likeQuery}`;
+        FROM planet_osm_polygon AS p 
+        WHERE p.aeroway LIKE 'aerodrome' AND ${searchVal ? `(LOWER(p.name) LIKE LOWER('%${decodeURI(searchVal)}%'))` : defaultAirports}`;
 
-    let firstLetterInterval = req.query.interval;
-    if(firstLetterInterval){
-        query += ` AND ( ${[...firstLetterInterval].map(c => `LOWER(LEFT(name, 1)) = '${c}'`).join(' OR ')})`;
+    if (startingChars) {
+        query += ` AND ( ${[...startingChars.toLowerCase()].map(c => `LOWER(LEFT(name, 1)) = '${c}'`).join(' OR ')})`;
     }
 
     db.query(query, (err, result) => {
-        if(err){
+        if (err) {
             return res.status(400).json(err);
         }
         res.json(result.rows);
     });
 })
+
+router.get('/areal-percentiles', (req, res) => {
+    const query = `
+    WITH area_data AS (
+        SELECT ST_Area(ST_Transform(way,4326)::geography) AS area 
+        FROM planet_osm_polygon AS p
+        WHERE p.aeroway='aerodrome' AND ${defaultAirports}
+        ORDER BY p.area ASC)
+    SELECT UNNEST (percentiles.PERCENTILE_CONT) AS percentile
+    FROM (
+        SELECT PERCENTILE_CONT((SELECT ARRAY_AGG(s) FROM GENERATE_SERIES(0.15, 1, 0.15) AS s)) WITHIN GROUP(ORDER BY area ASC)
+        FROM area_data
+        ) AS percentiles`;
+
+    db.query(query, function (err, result) {
+        res.json(result.rows.map(x => x.percentile));
+    });
+});
+
 
 router.get('/:id', (req, res) => {
     const id = req.params.id;
@@ -78,7 +90,7 @@ router.get('/:id', (req, res) => {
         `;
 
     db.query(query, (err, result) => {
-        if(err){
+        if (err) {
             return res.status(400).json(err);
         }
         res.json(result.rows[0]);

@@ -1,5 +1,5 @@
 
-const API = 'http://localhost:3000/map'
+const API = 'http://localhost:3000/api'
 const accessToken = 'pk.eyJ1IjoiYnJlYWRtYW4iLCJhIjoiY2pvYWN5cmpsMGRrdTN3bzVjejY0dmw3YiJ9._oHtPhbeqmwI-5cECzraBg';
 const MAPBOX_API = 'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}';
 
@@ -42,7 +42,7 @@ function getJsonData(url, params) {
     });
 }
 
-getJsonData(`${API}/area-distribution`).then((res) => {
+getJsonData(`${API}/airports/areal-percentiles`).then((res) => {
     if (res.length > 0) {
         areaDistribution["values"] = res;
     }
@@ -136,7 +136,7 @@ function onEachFeatureSingleAirport(feature, layer) {
 function addLayer(layerName, params) {
     switch (layerName) {
         case 'all-airports-layer':
-            getJsonData(`http://localhost:3000/api/airports`).then((res) => {
+            getJsonData(`${API}/airports`).then((res) => {
                 clearMap();
                 let layer = L.geoJSON(res.geojson, {
                     style: (feature) => getAirportAreaStyle(feature.properties.area),
@@ -147,7 +147,7 @@ function addLayer(layerName, params) {
             })
             break;
         case 'searched-airport-layer':
-            getJsonData(`http://localhost:3000/api/airports/${params.id}`).then((res) => {
+            getJsonData(`${API}/airports/${params.id}`).then((res) => {
                 clearMap();
                 let layer = L.geoJSON(res.geojson, {
                     style: (feature) => getAirportAreaStyle(feature.properties.area),
@@ -205,7 +205,7 @@ function applyAirportsPagination(arr, totalPages) {
 
 
 function airportSearchClick(airportInput) {
-    getJsonData(`http://localhost:3000/api/airports/names?searchVal=${encodeURI(airportInput)}`).then((res) => {
+    getJsonData(`${API}/airports/names?searchVal=${encodeURI(airportInput)}`).then((res) => {
         $("#airportsDiv").empty();
         if (res.length > 0) {
             $("#airportsDiv").append(airportSearchResultsContent);
