@@ -19,12 +19,15 @@ L.tileLayer(MAPBOX_API, {
     accessToken: accessToken
 }).addTo(mapObj);
 
-var myLayer = L.geoJSON().addTo(mapObj);
-var myLayer2 = L.geoJSON().addTo(mapObj);
-var markerLayer = L.geoJSON().addTo(mapObj);
-var lineLayer = L.geoJSON().addTo(mapObj);
 
-var areaDistribution = {
+
+let layers = {
+    polygons: L.layerGroup([]).addTo(mapObj),
+    markers: L.layerGroup([]).addTo(mapObj),
+    lines: L.layerGroup([]).addTo(mapObj)
+}
+
+let areaDistribution = {
     markerScale: ["orange", "orange", "orange", "red", "red", "darkred", "darkred"],
     colorScale: ["#F8EF68", "#ECCD5B", "#E0AC4E", "#D48A41", "#C86934", "#BC4727", "#B1261B"]
 };
@@ -67,15 +70,12 @@ function getFoodDrinkMarker(feature) {
     switch (feature.properties.amenity) {
         case "bar":
             return L.AwesomeMarkers.icon({ icon: 'glass', prefix: 'fa', markerColor: 'purple' });
-            break;
         case "restaurant":
         case "fast_food":
         case "food_court":
             return L.AwesomeMarkers.icon({ icon: 'cutlery', prefix: 'fa', markerColor: 'green' });
-            break;
         case "cafe":
             return L.AwesomeMarkers.icon({ icon: 'coffee', prefix: 'fa', markerColor: 'cadetblue' });
-            break;
     }
 }
 
@@ -99,18 +99,17 @@ function getAirportAreaStyle(area) {
 }
 
 function setMarker(text, icon, lat, lng) {
-    let marker = L.marker([lat, lng], { icon }).addTo(mapObj);
+    let marker = L.marker([lat, lng], { icon }).addTo(layers.markers);
     marker.bindPopup(text)
     return marker;
 }
 
 function onEachFeatureAllAirports(feature, layer) {
-    polygon = L.polygon(feature.geometry.coordinates);
+    const polygon = L.polygon(feature.geometry.coordinates);
+    const center = polygon.getBounds().getCenter();
+    const markerIcon = getAirplaneMarker(feature);
+    const markerText = `<h2><b>${feature.properties.title}</b></h2><p>Area: ${feature.properties.area.toFixed(2)} m<sup>2</sup></p>`;
 
-    var center = polygon.getBounds().getCenter();
-    var markerIcon = getAirplaneMarker(feature);
-
-    var markerText = `<h2><b>${feature.properties.title}</b></h2><p>Area: ${feature.properties.area.toFixed(2)} m<sup>2</sup></p>`;
     let marker = setMarker(markerText, markerIcon, center.lng, center.lat);
     marker.on('mouseover', e => marker.openPopup())
         .on('mouseout', e => marker.closePopup())
@@ -121,62 +120,47 @@ function onEachFeatureAllAirports(feature, layer) {
         })
 }
 
-function addLayer(layerName) {
+function onEachFeatureSingleAirport(feature, layer) {
+    const polygon = L.polygon(feature.geometry.coordinates);
+    const center = polygon.getBounds().getCenter();
+    const markerIcon = getAirplaneMarker(feature);
+    const markerText = `<h2><b>${feature.properties.title}</b></h2><p>Area: ${feature.properties.area.toFixed(2)} m<sup>2</sup></p>`;
+
+    let marker = setMarker(markerText, markerIcon, center.lng, center.lat);
+    marker.openPopup();
+
+    getNearestFoodDrink(center.lng, center.lat);
+    mapObj.setView([center.lng, center.lat], 13);
+}
+
+function addLayer(layerName, params) {
     switch (layerName) {
         case 'all-airports-layer':
-            getJsonData(`${API}/getAllAirports`).then((res) => {
-                let layer = L.geoJSON(res, {
+            getJsonData(`http://localhost:3000/api/airports`).then((res) => {
+                clearMap();
+                let layer = L.geoJSON(res.geojson, {
                     style: (feature) => getAirportAreaStyle(feature.properties.area),
                     onEachFeature: onEachFeatureAllAirports
                 });
-                mapObj.addLayer(layer);
+                layer.addTo(layers.polygons);
+                mapObj.setView(mapOptions.center, mapOptions.zoom);
             })
+            break;
+        case 'searched-airport-layer':
+            getJsonData(`http://localhost:3000/api/airports/${params.id}`).then((res) => {
+                clearMap();
+                let layer = L.geoJSON(res.geojson, {
+                    style: (feature) => getAirportAreaStyle(feature.properties.area),
+                    onEachFeature: onEachFeatureSingleAirport
+                });
+                layer.addTo(layers.polygons);
+                $('#airportSearchModal').modal('hide');
+            })
+
+            break;
+
+
     }
-}
-
-
-
-function getAllAirports() {
-    $.ajax({
-        url: "http://localhost:3000/map/getAllAirports",
-        dataType: "json",
-        success: (res) => {
-            clearMap();
-            myLayer = L.geoJSON(res, {
-                style: (feature) => getAirportAreaStyle(feature.properties.area),
-                onEachFeature: function (feature, layer) {
-                    polygon = L.polygon(feature.geometry.coordinates);
-                    var center = polygon.getBounds().getCenter();
-
-                    var markerStyle = getAirplaneMarker(feature);
-
-                    var markerText = `
-                        <h2><b>${feature.properties.title}</b></h2>
-                        <p>Area: ${feature.properties.area.toFixed(2)} m<sup>2</sup></p>
-                    `;
-                    var marker = L.marker([center.lng, center.lat], { icon: markerStyle }).addTo(markerLayer).bindPopup(markerText).on('mouseover', function (e) {
-                        marker.openPopup();
-                    }).on('mouseout', function (e) {
-                        marker.closePopup();
-                    }).on('click', function (e) {
-                        mapObj.setView([e.latlng.lat, e.latlng.lng], 13);
-                        getNearestFoodDrink(e.latlng.lat, e.latlng.lng);
-
-                    });
-
-                    layer.bindPopup(markerText).on('mouseover', function (e) {
-                        marker.openPopup();
-                    }).on('mouseout', function (e) {
-                        marker.closePopup();
-                    }).on('click', function (e) {
-                        mapObj.setView([e.latlng.lat, e.latlng.lng], 13);
-                        getNearestFoodDrink(e.latlng.lat, e.latlng.lng);
-                    });
-
-                }
-            }).addTo(myLayer);
-        }
-    });
 }
 
 const pageSize = 6;
@@ -198,7 +182,7 @@ const airportSearchResultsContent = `
     </div>
 `;
 
-function applyAirportsPagination(airports, totalPages) {
+function applyAirportsPagination(arr, totalPages) {
     $('#pagination').empty();
     $('#pagination').twbsPagination({
         totalPages,
@@ -206,29 +190,27 @@ function applyAirportsPagination(airports, totalPages) {
         onPageClick: (event, page) => {
             displayRecordsIndex = Math.max(page - 1, 0) * pageSize;
             endRec = (displayRecordsIndex) + pageSize;
-            displayRecords = airports.slice(displayRecordsIndex, endRec);
+            displayRecords = arr.slice(displayRecordsIndex, endRec);
 
-            let tr;
             $('#table_body').empty();
-            for (let i = 0; i < displayRecords.length; i++) {
-                tr = $('<tr/>');
-                tr.append("<td>" + `<a href="#" onClick="selectAirport('${displayRecords[i].properties.title}')">${displayRecords[i].properties.title}</a>` + "</td>");
-                console.log(displayRecords[i]);
+
+            displayRecords.forEach(x => {
+                let tr = $('<tr/>');
+                tr.append("<td>" + `<a href="#" id="airport-choice" data-id="${x.id}" data-layerName="searched-airport-layer">${x.title}</a>` + "</td>");
                 $('#table_body').append(tr);
-            }
+            })
         }
     });
 }
 
 
 function airportSearchClick(airportInput) {
-    getJsonData(`${API}/getAirport?name=${encodeURI(airportInput)}`).then((res) => {
+    getJsonData(`http://localhost:3000/api/airports/names?searchVal=${encodeURI(airportInput)}`).then((res) => {
         $("#airportsDiv").empty();
-        if (res.features.length > 0) {
+        if (res.length > 0) {
             $("#airportsDiv").append(airportSearchResultsContent);
-            let airports = res.features;
-            totalPages = Math.ceil(airports.length / pageSize);
-            applyAirportsPagination(airports, totalPages);
+            totalPages = Math.ceil(res.length / pageSize);
+            applyAirportsPagination(res, totalPages);
         }
         else {
             $("#airportsDiv").append(`
@@ -239,46 +221,20 @@ function airportSearchClick(airportInput) {
     });
 }
 
-function selectAirport(name) {
-    var feature = airportsGeoJson.features.filter((item) => {
-        return item.properties.title == name;
-    });
-
-    var clone = JSON.parse(JSON.stringify(airportsGeoJson));
-    clone.features = feature;
-    clearMap();
-    var markerStyle;
-
-    myLayer = L.geoJSON(clone, {
-        style: (feature) => getAirportAreaStyle(feature.properties.area),
-        onEachFeature: function (feature, layer) {
-            var markerText = `
-                <h2><b>${feature.properties.title}</b></h2>
-                <p>Area: ${feature.properties.area.toFixed(2)} m<sup>2</sup></p>
-            `;
-            polygon = L.polygon(feature.geometry.coordinates);
-            var center = polygon.getBounds().getCenter();
-            getNearestFoodDrink(center.lng, center.lat);
-            markerStyle = getAirplaneMarker(feature);
-            var marker = L.marker([center.lng, center.lat], { icon: markerStyle }).addTo(markerLayer).bindPopup(markerText).openPopup();
-            layer.bindPopup(markerText);
-            mapObj.setView([center.lng, center.lat], 13);
-        }
-    }).addTo(mapObj);
-    $('#airportSearchModal').modal('hide');
-}
-
 function clearMap() {
-    myLayer.clearLayers();
-    myLayer2.clearLayers();
-    markerLayer.clearLayers();
-    lineLayer.clearLayers();
-    mapObj.setView(mapOptions.center, mapOptions.zoom);
+    layers.polygons.clearLayers();
+    layers.markers.clearLayers();
+    layers.lines.clearLayers();
 };
 
 $('#clear-button').on('click', (e) => {
     e.preventDefault();
     clearMap();
+});
+
+$(document).on("click", "#airport-choice", (e) => {
+
+    addLayer(e.currentTarget.dataset.layername, { id: e.currentTarget.dataset.id })
 });
 
 function getNearestFoodDrink(lat, lon) {
@@ -295,7 +251,7 @@ function getNearestFoodDrink(lat, lon) {
                                 <li>Distance: ${feature.properties.dist.toFixed(2)} m</li>
                             </ul>
                         `;
-                    L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], { icon: getFoodDrinkMarker(feature) }).addTo(markerLayer).bindPopup(text);
+                    L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], { icon: getFoodDrinkMarker(feature) }).addTo(layers.markers).bindPopup(text);
                 }
             });
         }

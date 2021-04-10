@@ -31,23 +31,31 @@ router.get('/', (req, res) => {
         if(err){
             return res.status(400).json(err);
         }
-        res.json(result.rows);
+        res.json(result.rows[0]);
     });
 })
 
+
 router.get('/names', (req, res) => {
     let searchVal = req.query.searchVal;
+    let likeQuery;
     if(!searchVal){
-        searchVal = 'airfield';
+        likeQuery = `(LOWER(p.name) LIKE LOWER('%airfield%') OR LOWER(p.name) LIKE LOWER('%airport%'))`
     }
     else {
         searchVal = decodeURI(searchVal);
+        likeQuery = `(LOWER(p.name) LIKE LOWER('%${searchVal}%'))`
     }
 
-    const query = `
+    let query = `
         SELECT osm_id AS id, name AS title 
-        FROM planet_osm_polygon AS p 
-        WHERE p.aeroway LIKE 'aerodrome' AND (LOWER(p.name) LIKE '%airport%' OR LOWER(p.name) LIKE '%${searchVal}%');`;
+        FROM planet_osm_polygon as p 
+        WHERE p.aeroway LIKE 'aerodrome' AND ${likeQuery}`;
+
+    let firstLetterInterval = req.query.interval;
+    if(firstLetterInterval){
+        query += ` AND ( ${[...firstLetterInterval].map(c => `LOWER(LEFT(name, 1)) = '${c}'`).join(' OR ')})`;
+    }
 
     db.query(query, (err, result) => {
         if(err){
@@ -59,6 +67,7 @@ router.get('/names', (req, res) => {
 
 router.get('/:id', (req, res) => {
     const id = req.params.id;
+    console.log(id);
     const query = `
         WITH airport_data AS (
             SELECT osm_id AS id, name AS title, way
@@ -72,7 +81,7 @@ router.get('/:id', (req, res) => {
         if(err){
             return res.status(400).json(err);
         }
-        res.json(result.rows);
+        res.json(result.rows[0]);
     });
 })
 
