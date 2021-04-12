@@ -12,7 +12,7 @@ router.get('/getAllAirports', function (req, res, next) {
 
     db.query(myQuery, (err, result) => {
         console.log(result);
-        var geoJSON = toGeoJSON(result.rows); 
+        var geoJSON = toGeoJSON(result.rows);
         res.json(geoJSON);
     });
 });
@@ -55,14 +55,14 @@ router.get('/getAirport', function (req, res, next) {
 
     db.query(searchQuery, function (err, result) {
 
-        var geoJSON = toGeoJSON(result.rows); 
+        var geoJSON = toGeoJSON(result.rows);
         console.log("geoJSON:" + JSON.stringify(geoJSON));
         res.json(geoJSON);
     });
 
 });
 
-router.get('/getNearestFoodDrink', function(req, res, next){
+router.get('/getNearestFoodDrink', function (req, res, next) {
     console.log("food query request");
     let lon = decodeURI(req.query.lon);
     let lat = decodeURI(req.query.lat);
@@ -76,7 +76,7 @@ router.get('/getNearestFoodDrink', function(req, res, next){
 
     db.query(searchQuery, function (err, result) {
 
-        var geoJSON = toGeoJSON(result.rows); 
+        var geoJSON = toGeoJSON(result.rows);
         console.log("geoJSON:" + JSON.stringify(geoJSON));
         res.json(geoJSON);
     });
@@ -93,9 +93,9 @@ router.get('/getPointsForWeather', function (req, res, next) {
         from sub1,sub2;
     `;
     db.query(segmentLineQuery, async function (err, result) {
-        var segments = toGeoJSON([{geojson: result.rows[0].geojson}]);
-        var sourceAirport = toGeoJSON([{geojson: result.rows[0].srcgj, title: result.rows[0].name1}]);
-        var destinationAirport = toGeoJSON([{geojson: result.rows[0].destgj, title: result.rows[0].name2}]);
+        var segments = toGeoJSON([{ geojson: result.rows[0].geojson }]);
+        var sourceAirport = toGeoJSON([{ geojson: result.rows[0].srcgj, title: result.rows[0].name1 }]);
+        var destinationAirport = toGeoJSON([{ geojson: result.rows[0].destgj, title: result.rows[0].name2 }]);
 
         var lines = segments.features[0].geometry.coordinates;
         var promises = [];
@@ -109,7 +109,7 @@ router.get('/getPointsForWeather', function (req, res, next) {
 
         Promise.all(promises)
             .then((results) => {
-                res.json({interpols: results, sourceAirport: sourceAirport, destinationAirport: destinationAirport});
+                res.json({ interpols: results, sourceAirport: sourceAirport, destinationAirport: destinationAirport });
             });
     });
 });
@@ -159,48 +159,80 @@ router.get('/getAirplaneById', function (req, res, next) {
     });
 });
 
-router.get('/rangeQuery', function (req, res, next) {
-    console.log("query on gis db");
-    var sourceId = req.query.sourceId;
-    var destinationId = req.query.destinationId;
-    var maxDistance = Number(req.query.maxDistance);
-    console.log(maxDistance)
-    var myQuery = `
-        WITH sub1 AS (SELECT name, way FROM planet_osm_polygon WHERE osm_id = ${sourceId} ),
-        sub2 AS(SELECT name, way as way FROM planet_osm_polygon WHERE osm_id = ${destinationId}) 
-        select ST_Distance_Sphere(ST_Transform(ST_Centroid(sub1.way), 4326), ST_Transform(ST_Centroid(sub2.way), 4326)) / 1000 as disKm, 
-        sub1.name AS name1, 
-        ST_AsGeoJSON(ST_Transform(sub1.way, 4326)) as poly1, 
-        sub2.name AS name2, 
-        ST_AsGeoJSON(ST_Transform(sub2.way, 4326)) as poly2 
-        from sub1, sub2;`;
+router.get('/rangeQuery', (req, res) => {
 
-    db.query(myQuery, function (err, result) {
-        var airport1 = [{ geojson: result.rows[0].poly1, title: result.rows[0].name1 }];
-        var airport2 = [{ geojson: result.rows[0].poly2, title: result.rows[0].name2 }];
-        var geoJSON1 = toGeoJSON(airport1);
-        var geoJSON2 = toGeoJSON(airport2);
-        var dist = result.rows[0].diskm;
-        var resultObject;
+    const { sourceId, destinationId, maxDistance } = req.query;
 
-        if (dist > maxDistance) {
-            var interpolationQuery = `
-                WITH sub1 AS (SELECT name, way FROM planet_osm_polygon WHERE osm_id = ${sourceId} ), 
-                sub2 AS(SELECT name, way as way FROM planet_osm_polygon WHERE osm_id = ${destinationId}) 
-                select	ST_AsGeoJSON(ST_Line_Interpolate_Point(ST_MakeLine(ST_Transform(ST_Centroid(sub1.way), 4326), ST_Transform(ST_Centroid(sub2.way), 4326)), ${maxDistance / dist})) as interpolation 
-                from sub1,sub2;`;
+    let query = `
+        WITH source_data AS (
+            SELECT osm_id AS id, name, way FROM planet_osm_polygon WHERE osm_id = ${sourceId} 
+        ),
+        dest_data AS (
+            SELECT osm_id AS id, name, way as way FROM planet_osm_polygon WHERE osm_id = ${destinationId}
+        ),
+        range_data AS (
+            SELECT 
+                sub.distanceInKm,
+                CASE WHEN sub.distanceInKm > ${maxDistance} THEN 
+                    ST_AsGeoJSON(
+                        ST_LineInterpolatePoints(
+                            ST_MakeLine(
+                                ST_Transform(ST_Centroid(source_data.way), 4326), 
+                                ST_Transform(ST_Centroid(dest_data.way), 4326)
+                            ), 
+                            ${maxDistance} / sub.distanceInKm
+                        )
+                    )
+                ELSE null
+                END AS interpolation
+            FROM 
+                source_data, dest_data, (
+                    SELECT ST_DistanceSphere(ST_Transform(ST_Centroid(source_data.way), 4326), ST_Transform(ST_Centroid(dest_data.way), 4326)) / 1000 AS distanceInKm
+                    FROM source_data, dest_data) AS sub
+        )
+        SELECT 
+            jsonb_build_object(
+                        'type', 'FeatureCollection', 
+                        'features', jsonb_agg(features.source_obj)
+                    ) AS source_geojson,
+            jsonb_build_object(
+                        'type', 'FeatureCollection', 
+                        'features', jsonb_agg(features.dest_obj)
+                    ) AS dest_geojson, 
+            jsonb_build_object(
+                        'type', 'FeatureCollection', 
+                        'features', jsonb_agg(features.interpolation_obj)
+                    ) AS interpolation_geojson,
+            range_data.distanceInKm AS dist
 
-            db.query(interpolationQuery, function (err, result2) {
-                var interGeoJSON = toGeoJSON([{ geojson: result2.rows[0].interpolation, title: "" }]);
-                resultObject = { dist: dist, geoJSON1: geoJSON1, geoJSON2: geoJSON2, interGeoJSON: interGeoJSON }
-                res.json(resultObject);
-            })
+        FROM 
+            range_data, source_data, dest_data, (
+                SELECT 
+                    jsonb_build_object(
+                        'type', 'Feature',
+                        'properties', (SELECT row_to_json(_) FROM (SELECT source_data.id, source_data.name) as _),
+                        'geometry', ST_AsGeoJSON(ST_Transform(source_data.way, 4326))::jsonb
+                    ) AS source_obj, 
+                    jsonb_build_object(
+                        'type', 'Feature',
+                        'properties', (SELECT row_to_json(_) FROM (SELECT dest_data.id, dest_data.name) as _),
+                        'geometry', ST_AsGeoJSON(ST_Transform(dest_data.way, 4326))::jsonb
+                    ) AS dest_obj,
+                    jsonb_build_object(
+                        'type', 'Feature',
+                        'geometry', range_data.interpolation::jsonb
+                    ) AS interpolation_obj
+                FROM source_data, dest_data, range_data) AS features
+
+        GROUP BY range_data.distanceInKm
+    `;
+
+    db.query(query, function (err, result) {
+        if (err) {
+            console.log(err);
+            return res.status(400).json(err);
         }
-        else {
-            resultObject = { dist: dist, geoJSON1: geoJSON1, geoJSON2: geoJSON2 }
-            res.json(resultObject);
-        }
-
+        res.json(result.rows[0]);
     });
 });
 

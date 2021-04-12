@@ -8,9 +8,9 @@
 
     <link rel="icon" type="image/x-icon" href="./assets/img/plane-icon.png">
 
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
-        integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
-
+    <!-- <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+        integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous"> -->
+    <script src="https://kit.fontawesome.com/2645889bbe.js" crossorigin="anonymous"></script>
 
 
     <link rel="stylesheet" href="./css/styles.css">
@@ -20,7 +20,7 @@
     <link rel="stylesheet" href="./dist/leaflet.awesome-markers/leaflet.awesome-markers.css">
     <script src="./dist/leaflet-1.7.1/leaflet.js"></script>
 
-    <title>Airtports</title>
+    <title>Airtports UK</title>
 </head>
 
 <body>
@@ -30,10 +30,11 @@
         <!-- Sidebar -->
         <div class="bg-light border-right" id="sidebar-wrapper">
             <div class="sidebar-heading">
-                <a href="#"> <img src="./assets/img/plane-icon.png" alt="" width="30" height="30"> Airports</a>
+                <a href="#"> <img src="./assets/img/plane-icon.png" alt="" width="30" height="30">     Airports UK</a>
             </div>
             <div class="list-group list-group-flush">
-                <a href="#" class="list-group-item list-group-item-action bg-light" onClick="addLayer('all-airports-layer')">Show All
+                <a href="#" class="list-group-item list-group-item-action bg-light"
+                    onClick="addLayer('all-airports')">Show All
                     Airports</a>
                 <a href="#" class="list-group-item list-group-item-action bg-light" id="airportSearch"
                     data-toggle="modal" data-target="#airportSearchModal">Aiport Search</a>
@@ -52,11 +53,11 @@
             <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
                 <button class="btn btn-primary" id="menu-toggle">Toggle Menu</button>
 
-                <button class="navbar-toggler" type="button" data-toggle="collapse"
+                <!-- <button class="navbar-toggler" type="button" data-toggle="collapse"
                     data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false"
                     aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
-                </button>
+                </button> -->
 
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
                 </div>
@@ -164,7 +165,7 @@
                             <a href="#" onclick="loadAirportsToSelect('klmno', '#sourceAirportSelect')">k-o</a>
                             <a href="#" onclick="loadAirportsToSelect('pqrst', '#sourceAirportSelect')">p-t</a>
                             <a href="#" onclick="loadAirportsToSelect('uvwxyz', '#sourceAirportSelect')">u-z</a>
-                            <select id="sourceAirportSelect" onchange='validateForm()' class="form-control" disabled
+                            <select id="sourceAirportSelect" onchange='validateRangeForm()' class="form-control" disabled
                                 required>
                                 <option value="" disabled selected>Select your option</option>
                             </select>
@@ -176,18 +177,18 @@
                             <a href="#" onclick="loadAirportsToSelect('klmno', '#destinationAirportSelect')">k-o</a>
                             <a href="#" onclick="loadAirportsToSelect('pqrst', '#destinationAirportSelect')">p-t</a>
                             <a href="#" onclick="loadAirportsToSelect('uvwxyz', '#destinationAirportSelect')">u-z</a>
-                            <select id="destinationAirportSelect" onchange='validateForm()' class="form-control"
+                            <select id="destinationAirportSelect" onchange='validateRangeForm()' class="form-control"
                                 disabled required>
                                 <option value="" disabled selected>Select your option</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="airplaneSelect">Airplane</label>
-                            <select id="airplaneSelect" class="form-control" onChange="airplaneClick()" disabled>
+                            <label for="aircraft-select">Airplane</label>
+                            <select id="aircraft-select" class="form-control" disabled>
                                 <option value="" disabled selected>Choose airplane</option>
                             </select>
                         </div>
-                        <div id="airplaneDiv" hidden>
+                        <div id="aircraft-div" hidden>
                             <div class="row">
                                 <div class="col-md-6">
                                     <img src="" class="image">
@@ -204,8 +205,7 @@
                                 </div>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-primary" id="rangeButton"
-                            onClick="rangeClicked(sourceAirportSelect.options[sourceAirportSelect.selectedIndex].value, destinationAirportSelect.options[destinationAirportSelect.selectedIndex].value)">Search</button>
+                        <button type="button" class="btn btn-primary" id="range-button">Search</button>
                     </form>
                 </div>
             </div>

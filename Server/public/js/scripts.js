@@ -48,9 +48,21 @@ getJsonData(`${API}/airports/areal-percentiles`).then((res) => {
     }
 })
 
+getJsonData(`${API}/aircrafts/names`).then(res => {
+    if (res.length > 0) {
+        $('#aircraft-select').prop('disabled', false);
+        res.forEach(x => {
+            $("#aircraft-select").append(`<option 
+            value="${x.id}">${x.name}</option>`);
+        })
+    }
+})
+
+validateRangeForm();
+
 function getAirplaneMarker(feature) {
-    var area = feature.properties.area;
-    for (var i = 0; i < areaDistribution.values.length; i++) {
+    const area = feature.properties.area;
+    for (let i = 0; i < areaDistribution.values.length; i++) {
         if (area < areaDistribution.values[i]) {
             return L.AwesomeMarkers.icon({
                 icon: 'plane',
@@ -70,17 +82,31 @@ function getFoodDrinkMarker(feature) {
     switch (feature.properties.amenity) {
         case "bar":
             return L.AwesomeMarkers.icon({ icon: 'glass', prefix: 'fa', markerColor: 'purple' });
-        case "restaurant":
         case "fast_food":
+            return L.AwesomeMarkers.icon({ icon: 'hamburger', prefix: 'fa', markerColor: 'green' });
+        case "restaurant":
         case "food_court":
             return L.AwesomeMarkers.icon({ icon: 'cutlery', prefix: 'fa', markerColor: 'green' });
         case "cafe":
             return L.AwesomeMarkers.icon({ icon: 'coffee', prefix: 'fa', markerColor: 'cadetblue' });
+        case "ice_cream":
+            return L.AwesomeMarkers.icon({ icon: 'ice-cream', prefix: 'fa', markerColor: 'yellow' });
+        case "pub":
+            return L.AwesomeMarkers.icon({ icon: 'beer', prefix: 'fa', markerColor: 'purple' });
+    }
+}
+
+function getRangeMarker(type) {
+    switch (type) {
+        case "src":
+            return L.AwesomeMarkers.icon({ icon: 'plane-departure', prefix: 'fa', markerColor: 'green' });
+        case "dst":
+            return L.AwesomeMarkers.icon({ icon: 'flag', prefix: 'fa', markerColor: 'red' });
     }
 }
 
 function getAirportAreaStyle(area) {
-    for (var i = 0; i < areaDistribution.values.length; i++) {
+    for (let i = 0; i < areaDistribution.values.length; i++) {
         if (area < areaDistribution.values[i]) {
             return {
                 color: areaDistribution.colorScale[i],
@@ -135,7 +161,7 @@ function onEachFeatureSingleAirport(feature, layer) {
 
 function addLayer(layerName, params) {
     switch (layerName) {
-        case 'all-airports-layer':
+        case 'all-airports':
             getJsonData(`${API}/airports`).then((res) => {
                 clearMap();
                 let layer = L.geoJSON(res.geojson, {
@@ -146,7 +172,7 @@ function addLayer(layerName, params) {
                 mapObj.setView(mapOptions.center, mapOptions.zoom);
             })
             break;
-        case 'searched-airport-layer':
+        case 'searched-airport':
             getJsonData(`${API}/airports/${params.id}`).then((res) => {
                 clearMap();
                 let layer = L.geoJSON(res.geojson, {
@@ -157,6 +183,50 @@ function addLayer(layerName, params) {
                 $('#airportSearchModal').modal('hide');
             })
 
+            break;
+        case 'aircrafts-range':
+            getJsonData(`${API}/range`, params).then(res => {
+                clearMap();
+                console.log(res);
+                const src_polygon = L.polygon(res.source_geojson.features[0].geometry.coordinates);
+                const dst_polygon = L.polygon(res.dest_geojson.features[0].geometry.coordinates);
+
+                const src_center = src_polygon.getBounds().getCenter();
+                const dst_center = dst_polygon.getBounds().getCenter();
+
+                const srcMarkerText = `<h2><b>Source:</b></h2><p>${res.source_geojson.features[0].properties.title}</p>`;
+                const srcMarkerIcon = getRangeMarker("src");
+
+                const dstMarkerText = `<h2><b>Destination:</b></h2><p>${res.dest_geojson.features[0].properties.title}</p>`;
+                const dstMarkerIcon = getRangeMarker("dst");
+
+                setMarker(srcMarkerText, srcMarkerIcon, src_center.lng, src_center.lat);
+                setMarker(dstMarkerText, dstMarkerIcon, dst_center.lng, dst_center.lat);
+
+                const lerp_geom = res.interpolation_geojson.features[0].geometry;
+
+                if (lerp_geom) {
+                    const line1 = L.polyline([[src_center.lng, src_center.lat], lerp_geom.coordinates[0].reverse()],
+                        {
+                            color: '#339532',
+                            weight: 5,
+                            opacity: .9
+                        }).addTo(layers.lines)
+
+                    const line2 = L.polyline([lerp_geom.coordinates[0], [dst_center.lng, dst_center.lat]],
+                        {
+                            color: '#8A322E',
+                            weight: 5,
+                            opacity: .9,
+                            dashArray: '15'
+                        }).addTo(layers.lines)
+                }
+                else {
+
+                }
+
+                $('#aircraftRangeModal').modal('hide');
+            })
             break;
 
 
@@ -196,7 +266,7 @@ function applyAirportsPagination(arr, totalPages) {
 
             displayRecords.forEach(x => {
                 let tr = $('<tr/>');
-                tr.append("<td>" + `<a href="#" id="airport-choice" data-id="${x.id}" data-layerName="searched-airport-layer">${x.title}</a>` + "</td>");
+                tr.append("<td>" + `<a href="#" id="airport-choice" data-id="${x.id}" data-layerName="searched-airport">${x.title}</a>` + "</td>");
                 $('#table_body').append(tr);
             })
         }
@@ -221,6 +291,77 @@ function airportSearchClick(airportInput) {
     });
 }
 
+function getNearestFoodDrink(lat, lon) {
+    getJsonData(`${API}/amenity/sustenance/near-to`, { lat, lon }).then((res) => {
+        L.geoJSON(res.geojson, {
+            onEachFeature: (feature, layer) => {
+                const { name, dist, amenity } = feature.properties;
+                const { coordinates } = feature.geometry;
+
+                const markerText = `
+                    <h2><b>${name}</b></h2>
+                    <ul><li>Type: ${amenity}</li><li>Distance: ${dist.toFixed(2)} m</li></ul>`;
+                const markerIcon = getFoodDrinkMarker(feature);
+
+                setMarker(markerText, markerIcon, ...coordinates.reverse());
+            }
+        })
+    })
+}
+
+function loadAirportsToSelect(startingChars, selectId) {
+    $(selectId).prop("disabled", true);
+    getJsonData(`${API}/airports/names`, { startingChars }).then(res => {
+        $(selectId).empty();
+        $(selectId).append('<option value="" disabled selected>Select your option</option>');
+        if (res.length > 0) {
+            $.each(res, (index, value) => {
+                $(selectId).append(`<option value="${value.id}">${value.title}</option>`);
+            })
+            $(selectId).prop("disabled", false);
+        }
+    })
+}
+
+let selected_aircraft;
+function aircraftSelected(id) {
+    getJsonData(`${API}/aircrafts/${id}`).then(res => {
+        if (res) {
+            selected_aircraft = res;
+            console.log(selected_aircraft.name);
+            $("#aircraft-div")
+                .prop('hidden', false)
+                .empty()
+                .append(
+                    `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <img src="${selected_aircraft.img_url}" width="220">
+                        </div>
+                        <div class="col-md-6">
+                            <p>Name: ${selected_aircraft.name}</p>
+                            <p> Max speed: ${selected_aircraft.max_speed} km/h</p>
+                            <p>Fuel consumption: ${selected_aircraft.fuel_consumption} kg/h</p>
+                            <div class="form-group">
+                                <label for="fuelLoadInput">Fuel load in kg</label>
+                                <input type="number" class="form-control" onkeyup='validateRangeForm()' id="fuelLoadInput" placeholder="Enter fuel load" required>
+                            </div>
+                        </div>
+                    </div>
+				`
+                );
+        }
+    })
+}
+
+function validateRangeForm() {
+    if ($("#fuelLoadInput").val().length > 0 && $("#sourceAirportSelect").prop("selectedIndex") != 0 && $("#destinationAirportSelect").prop("selectedIndex") != 0) {
+        $("#range-button").prop('disabled', false);
+    } else {
+        $("#range-button").prop('disabled', true);
+    }
+}
+
 function clearMap() {
     layers.polygons.clearLayers();
     layers.markers.clearLayers();
@@ -233,28 +374,29 @@ $('#clear-button').on('click', (e) => {
 });
 
 $(document).on("click", "#airport-choice", (e) => {
-
     addLayer(e.currentTarget.dataset.layername, { id: e.currentTarget.dataset.id })
 });
 
-function getNearestFoodDrink(lat, lon) {
-    $.ajax({
-        url: `http://localhost:3000/map/getNearestFoodDrink?lon=${lon}&lat=${lat}`,
-        dataType: "json",
-        success: function (response) {
-            myLayer2 = L.geoJSON(response, {
-                onEachFeature: function (feature, layer) {
-                    var text = `
-                            <h2><b>${feature.properties.name}</b></h2>
-                            <ul>
-                                <li>Type: ${feature.properties.amenity}</li>
-                                <li>Distance: ${feature.properties.dist.toFixed(2)} m</li>
-                            </ul>
-                        `;
-                    L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], { icon: getFoodDrinkMarker(feature) }).addTo(layers.markers).bindPopup(text);
-                }
-            });
-        }
+// $(document).on("change", "#aircraft-select", event => {
+//     console.log(event);
+// })
+
+$('#aircraft-select').on('change', (e) => {
+    aircraftSelected(e.currentTarget.value);
+});
+
+$(document).on("click", "#range-button", (e) => {
+    const fuelLoad = $("#fuelLoadInput").val();
+    const timeToConsumeAll = fuelLoad / selected_aircraft.fuel_consumption;
+    const maxDistance = selected_aircraft.max_speed * timeToConsumeAll;
+
+    console.log(maxDistance);
+
+    addLayer("aircrafts-range", {
+        sourceId: $("#sourceAirportSelect option:selected").val(),
+        destinationId: $("#destinationAirportSelect option:selected").val(),
+        maxDistance
     })
-}
+})
+
 

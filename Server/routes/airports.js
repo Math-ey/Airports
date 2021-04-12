@@ -31,6 +31,7 @@ router.get('/', (req, res) => {
 
     db.query(query, (err, result) => {
         if (err) {
+            console.log(err);
             return res.status(400).json(err);
         }
         res.json(result.rows[0]);
@@ -52,6 +53,7 @@ router.get('/names', (req, res) => {
 
     db.query(query, (err, result) => {
         if (err) {
+            console.log(err);
             return res.status(400).json(err);
         }
         res.json(result.rows);
@@ -72,6 +74,10 @@ router.get('/areal-percentiles', (req, res) => {
         ) AS percentiles`;
 
     db.query(query, function (err, result) {
+        if (err) {
+            console.log(err);
+            return res.status(400).json(err);
+        }
         res.json(result.rows.map(x => x.percentile));
     });
 });
@@ -91,6 +97,7 @@ router.get('/:id', (req, res) => {
 
     db.query(query, (err, result) => {
         if (err) {
+            console.log(err);
             return res.status(400).json(err);
         }
         res.json(result.rows[0]);
