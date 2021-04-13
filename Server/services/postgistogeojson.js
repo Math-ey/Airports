@@ -56,7 +56,3 @@ module.exports = function postGISQueryToFeatureCollection(queryResult) {
     // return the FeatureCollection geojson object.
     return geojson;
 }
-
-
-
-

@@ -19,8 +19,6 @@ L.tileLayer(MAPBOX_API, {
     accessToken: accessToken
 }).addTo(mapObj);
 
-
-
 let layers = {
     polygons: L.layerGroup([]).addTo(mapObj),
     markers: L.layerGroup([]).addTo(mapObj),
@@ -38,31 +36,9 @@ function getJsonData(url, params) {
         type: 'GET',
         contentType: 'application/json; charset=utf-8',
         dataType: 'json',
-        data: params,
-        // headers: {
-        //     'Access-Control-Allow-Origin': 'http://api.openweathermap.org'
-        // }
+        data: params
     });
 }
-
-getJsonData(`${API}/airports/areal-percentiles`).then((res) => {
-    if (res.length > 0) {
-        areaDistribution["values"] = res;
-    }
-})
-
-getJsonData(`${API}/aircrafts/names`).then(res => {
-    if (res.length > 0) {
-        $('#aircraft-select').prop('disabled', false);
-        res.forEach(x => {
-            $("#aircraft-select").append(`<option 
-            value="${x.id}">${x.name}</option>`);
-        })
-    }
-})
-
-validateRangeForm();
-validateFlightWeatherForm();
 
 function getAirplaneMarker(feature) {
     const area = feature.properties.area;
@@ -298,12 +274,9 @@ function addLayer(layerName, params) {
                         line.openPopup();
                     })
                 })
-
                 $('#aviationWeatherModal').modal('hide');
             });
             break;
-
-
     }
 }
 
@@ -330,18 +303,11 @@ const airportSearchResultsContent = `
     <br/>
     <h5>Search results:</h5>
     <table id="airportTable" class="table table-bordered table table-hover" cellspacing="0" width="100%">
-        <colgroup>
-            <col>
-        </colgroup>
-        <thead>
-
-        </thead>
-        <tbody id="table_body">
-        </tbody>
+        <colgroup><col></colgroup>
+        <thead></thead>
+        <tbody id="table_body"></tbody>
     </table>
-    <div id="pager">
-        <ul id="pagination" class="pagination-sm"></ul>
-    </div>
+    <div id="pager"><ul id="pagination" class="pagination-sm"></ul></div>
 `;
 
 function applyAirportsPagination(arr, totalPages) {
@@ -355,12 +321,7 @@ function applyAirportsPagination(arr, totalPages) {
             displayRecords = arr.slice(displayRecordsIndex, endRec);
 
             $('#table_body').empty();
-
-            displayRecords.forEach(x => {
-                let tr = $('<tr/>');
-                tr.append("<td>" + `<a href="#" id="airport-choice" data-id="${x.id}" data-layerName="searched-airport">${x.title}</a>` + "</td>");
-                $('#table_body').append(tr);
-            })
+            displayRecords.forEach(x => $('#table_body').append('<tr>').append(`<td><a href="#" id="airport-choice" data-id="${x.id}" data-layerName="searched-airport">${x.title}</a></td>`))
         }
     });
 }
@@ -375,10 +336,7 @@ function airportSearchClick(airportInput) {
             applyAirportsPagination(res, totalPages);
         }
         else {
-            $("#airportsDiv").append(`
-                    <br/>
-                    <h5>No results</h5>
-                `);
+            $("#airportsDiv").append(`<br/><h5>No results</h5>`);
         }
     });
 }
@@ -424,8 +382,7 @@ function aircraftSelected(id) {
             $("#aircraft-div")
                 .prop('hidden', false)
                 .empty()
-                .append(
-                    `
+                .append(`
                     <div class="row">
                         <div class="col-md-6">
                             <img src="${selected_aircraft.description.img_url}" width="220">
@@ -440,8 +397,7 @@ function aircraftSelected(id) {
                             </div>
                         </div>
                     </div>
-				`
-                );
+				`);
         }
     })
 }
@@ -477,10 +433,6 @@ $(document).on("click", "#airport-choice", (e) => {
     addLayer(e.currentTarget.dataset.layername, { id: e.currentTarget.dataset.id })
 });
 
-// $(document).on("change", "#aircraft-select", event => {
-//     console.log(event);
-// })
-
 $('#aircraft-select').on('change', (e) => {
     aircraftSelected(e.currentTarget.value);
 });
@@ -508,4 +460,23 @@ $(document).on("click", "#weather-button", (e) => {
     })
 })
 
-
+$(document).ready(() => {
+    getJsonData(`${API}/airports/areal-percentiles`).then((res) => {
+        if (res.length > 0) {
+            areaDistribution["values"] = res;
+        }
+    })
+    
+    getJsonData(`${API}/aircrafts/names`).then(res => {
+        if (res.length > 0) {
+            $('#aircraft-select').prop('disabled', false);
+            res.forEach(x => {
+                $("#aircraft-select").append(`<option 
+                value="${x.id}">${x.name}</option>`);
+            })
+        }
+    })
+    
+    validateRangeForm();
+    validateFlightWeatherForm();
+})

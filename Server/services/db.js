@@ -1,4 +1,5 @@
 const pg = require('pg');
+require('dotenv/config');
 
 const connectionString = "postgres://postgres:1234@localhost:5432/pdt";
 
