@@ -39,9 +39,9 @@
                 <a href="#" class="list-group-item list-group-item-action bg-light" id="airportSearch"
                     data-toggle="modal" data-target="#airportSearchModal">Aiport Search</a>
                 <a href="#" class="list-group-item list-group-item-action bg-light" id="aircraftRange"
-                    data-toggle="modal" data-target="#aircraftRangeModal">Aircraft Distance Meter</a>
+                    data-toggle="modal" data-target="#aircraftRangeModal">Aircraft Range Meter</a>
                 <a href="#" class="list-group-item list-group-item-action bg-light" id="aviationWeather"
-                    data-toggle="modal" data-target="#aviationWeatherModal">Aviaton Weater</a>
+                    data-toggle="modal" data-target="#aviationWeatherModal">Flight Weater</a>
                 <a href="#" class="list-group-item list-group-item-action bg-light" id="clear-button">Clear Map</a>
             </div>
         </div>
@@ -105,7 +105,7 @@
         <div class="modal-dialog modal-dialog-centered" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="aviationWeatherModalTitle">Aviation weather</h5>
+                    <h5 class="modal-title" id="aviationWeatherModalTitle">Flight weather</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -119,7 +119,7 @@
                             <a href="#" onclick="loadAirportsToSelect('klmno', '#sourceAirportSelect2')">k-o</a>
                             <a href="#" onclick="loadAirportsToSelect('pqrst', '#sourceAirportSelect2')">p-t</a>
                             <a href="#" onclick="loadAirportsToSelect('uvwxyz', '#sourceAirportSelect2')">u-z</a>
-                            <select id="sourceAirportSelect2" onchange='validateForm2()' class="form-control" disabled
+                            <select id="sourceAirportSelect2" onchange='validateFlightWeatherForm()' class="form-control" disabled
                                 required>
                                 <option value="" disabled selected>Select your option</option>
                             </select>
@@ -131,14 +131,13 @@
                             <a href="#" onclick="loadAirportsToSelect('klmno', '#destinationAirportSelect2')">k-o</a>
                             <a href="#" onclick="loadAirportsToSelect('pqrst', '#destinationAirportSelect2')">p-t</a>
                             <a href="#" onclick="loadAirportsToSelect('uvwxyz', '#destinationAirportSelect2')">u-z</a>
-                            <select id="destinationAirportSelect2" onchange='validateForm2()' class="form-control"
+                            <select id="destinationAirportSelect2" onchange='validateFlightWeatherForm()' class="form-control"
                                 disabled required>
                                 <option value="" disabled selected>Select your option</option>
                             </select>
                         </div>
-                        <button type="button" class="btn btn-primary" id="weatherButton"
-                            onClick="weatherClicked(sourceAirportSelect2.options[sourceAirportSelect2.selectedIndex].value, destinationAirportSelect2.options[destinationAirportSelect2.selectedIndex].value)">Show
-                            weather
+                        <button type="button" class="btn btn-primary" id="weather-button">
+                            Show weather
                         </button>
                     </form>
                 </div>

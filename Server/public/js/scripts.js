@@ -1,5 +1,5 @@
-
-const API = 'http://localhost:3000/api'
+const API = 'http://localhost:3000/api';
+const WeatherAPI = 'http://api.openweathermap.org/data/2.5/weather';
 const accessToken = 'pk.eyJ1IjoiYnJlYWRtYW4iLCJhIjoiY2pvYWN5cmpsMGRrdTN3bzVjejY0dmw3YiJ9._oHtPhbeqmwI-5cECzraBg';
 const MAPBOX_API = 'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}';
 
@@ -38,7 +38,10 @@ function getJsonData(url, params) {
         type: 'GET',
         contentType: 'application/json; charset=utf-8',
         dataType: 'json',
-        data: params
+        data: params,
+        // headers: {
+        //     'Access-Control-Allow-Origin': 'http://api.openweathermap.org'
+        // }
     });
 }
 
@@ -59,6 +62,7 @@ getJsonData(`${API}/aircrafts/names`).then(res => {
 })
 
 validateRangeForm();
+validateFlightWeatherForm();
 
 function getAirplaneMarker(feature) {
     const area = feature.properties.area;
@@ -159,6 +163,10 @@ function onEachFeatureSingleAirport(feature, layer) {
     mapObj.setView([center.lng, center.lat], 13);
 }
 
+function reverse(arr) {
+    return arr.map((val, idx) => arr[arr.length - 1 - idx]);
+}
+
 function addLayer(layerName, params) {
     switch (layerName) {
         case 'all-airports':
@@ -187,7 +195,6 @@ function addLayer(layerName, params) {
         case 'aircrafts-range':
             getJsonData(`${API}/range`, params).then(res => {
                 clearMap();
-                console.log(res);
                 const src_polygon = L.polygon(res.source_geojson.features[0].geometry.coordinates);
                 const dst_polygon = L.polygon(res.dest_geojson.features[0].geometry.coordinates);
 
@@ -206,31 +213,116 @@ function addLayer(layerName, params) {
                 const lerp_geom = res.interpolation_geojson.features[0].geometry;
 
                 if (lerp_geom) {
-                    const line1 = L.polyline([[src_center.lng, src_center.lat], lerp_geom.coordinates[0].reverse()],
-                        {
-                            color: '#339532',
-                            weight: 5,
-                            opacity: .9
-                        }).addTo(layers.lines)
-
-                    const line2 = L.polyline([lerp_geom.coordinates[0], [dst_center.lng, dst_center.lat]],
-                        {
-                            color: '#8A322E',
-                            weight: 5,
-                            opacity: .9,
-                            dashArray: '15'
-                        }).addTo(layers.lines)
+                    const text = `
+                        <div class="row">
+                            <div class="col-2 img-container"><img src="../assets/img/error.svg" class="icon" width="40"></div>
+                            <div class="col-10"><p>This plane wouldn't make the whole flight with provided amount of fuel. </p></div>
+                        </div>
+                        <ul>
+                            <li>Provided amount of fuel: ${selected_aircraft.fuelLoad} kg</li>
+                            <li>Distance between airports: ${res.dist.toFixed(2)} km</li>
+                            <li>Max flight distance: ${selected_aircraft.maxDistance.toFixed(2)} km</li>
+                            <li>Remaining distance: ${(res.dist - selected_aircraft.maxDistance).toFixed(2)} km</li>
+                        </ul>
+                    `;
+                    L.polyline([[src_center.lng, src_center.lat], reverse(lerp_geom.coordinates[0])], { color: '#339532', weight: 5, opacity: .9 }).addTo(layers.lines).bindPopup(text).openPopup();
+                    L.polyline([reverse(lerp_geom.coordinates[0]), [dst_center.lng, dst_center.lat]], { color: '#8A322E', weight: 5, opacity: .9, dashArray: '15' }).addTo(layers.lines);
                 }
                 else {
-
+                    const timeOfTravel = res.dist / selected_aircraft.description.max_speed;
+                    const consumed = selected_aircraft.description.fuel_consumption * timeOfTravel;
+                    const text = `
+                        <div class="row">
+                            <div class="col-2 img-container"><img src="../assets/img/success.svg" class="icon" width="40"></div>
+                            <div class="col-10"><p>Selected plane has just enough amount of fuel to reach destination airport.</p></div>
+                        </div>
+                        <ul>
+                            <li>Provided amount of fuel: ${selected_aircraft.fuelLoad} kg</li>
+                            <li>Distance between airports: ${res.dist.toFixed(2)} km</li>
+                            <li>Max flight distance: ${selected_aircraft.maxDistance.toFixed(2)} km</li>
+                            <li>Remaining fuel: ${(selected_aircraft.fuelLoad - consumed).toFixed(2)} kg</li>
+                        </ul>
+                    `;
+                    L.polyline([[src_center.lng, src_center.lat], [dst_center.lng, dst_center.lat]], { color: '#339532', weight: 5, opacity: .9 }).addTo(layers.lines).bindPopup(text).openPopup();
                 }
 
                 $('#aircraftRangeModal').modal('hide');
             })
             break;
+        case 'flight-weather':
+
+            getJsonData(`${API}/route-segments`, params).then(res => {
+                clearMap();
+
+                const pointsForWeaether = res.segment_geojson.features[0].geometry.coordinates;
+
+                const src_polygon = L.polygon(res.source_geojson.features[0].geometry.coordinates);
+                const dst_polygon = L.polygon(res.dest_geojson.features[0].geometry.coordinates);
+
+                const src_center = src_polygon.getBounds().getCenter();
+                const dst_center = dst_polygon.getBounds().getCenter();
+
+                const srcMarkerText = `<h2><b>Source:</b></h2><p>${res.source_geojson.features[0].properties.title}</p>`;
+                const srcMarkerIcon = getRangeMarker("src");
+
+                const dstMarkerText = `<h2><b>Destination:</b></h2><p>${res.dest_geojson.features[0].properties.title}</p>`;
+                const dstMarkerIcon = getRangeMarker("dst");
+
+                setMarker(srcMarkerText, srcMarkerIcon, src_center.lng, src_center.lat);
+                setMarker(dstMarkerText, dstMarkerIcon, dst_center.lng, dst_center.lat);
+
+                let line = L.polyline([[src_center.lng, src_center.lat], [dst_center.lng, dst_center.lat]], { color: '#339532', weight: 5, opacity: .9, }).addTo(layers.lines);
+
+                pointsForWeaether.forEach((val, idx) => {
+                    const [lon, lat] = val;
+                    getJsonData(`${API}/weather`, { lon, lat }).then(weatherRes => {
+                        if (!isGoodWeather(weatherRes.weather)) {
+                            const lineText = `
+                                <div class="row">
+                                    <div class="col-2 img-container"><img src="../assets/img/error.svg" class="icon" width="40"></div>
+                                    <div class="col-10"><p>The flight could be dangerous due to bad weather along this trajectory of flight.</p></div>
+                                </div>
+                            `;
+                            L.marker([lat, lon], { icon: L.icon({ iconUrl: `http://openweathermap.org/img/w/${weatherRes.weather[0].icon}.png`, iconAnchor: [30, 40] }) }).addTo(layers.markers).bindPopup(weatherRes.weather[0].description);
+                            line.bindPopup(lineText);
+                        }
+                        else {
+                            const lineText = `
+                                <div class="row">
+                                    <div class="col-2 img-container"><img src="../assets/img/success.svg" class="icon" width="40"></div>
+                                    <div class="col-10"><p>The weather is OK along this trajectory of flight.</p></div>
+                                </div>
+                            `;
+                            line.bindPopup(lineText);
+                        }
+                        line.openPopup();
+                    })
+                })
+
+                $('#aviationWeatherModal').modal('hide');
+            });
+            break;
 
 
     }
+}
+
+function isGoodWeather(weather) {
+    const badWeatherIdIntervals = [[200, 232], [500, 513], [600, 622]];
+    const otherBadWeatherIds = [762, 771, 781];
+
+    weather.forEach(w => {
+        badWeatherIdIntervals.forEach(ids => {
+            if (w.id >= ids[0] && w.id <= ids[1]) {
+                return false;
+            }
+        })
+        if (otherBadWeatherIds.includes(w.id)) {
+            return false;
+        }
+    })
+
+    return true;
 }
 
 const pageSize = 6;
@@ -303,7 +395,7 @@ function getNearestFoodDrink(lat, lon) {
                     <ul><li>Type: ${amenity}</li><li>Distance: ${dist.toFixed(2)} m</li></ul>`;
                 const markerIcon = getFoodDrinkMarker(feature);
 
-                setMarker(markerText, markerIcon, ...coordinates.reverse());
+                setMarker(markerText, markerIcon, ...reverse(coordinates));
             }
         })
     })
@@ -323,12 +415,12 @@ function loadAirportsToSelect(startingChars, selectId) {
     })
 }
 
-let selected_aircraft;
+let selected_aircraft = {};
 function aircraftSelected(id) {
     getJsonData(`${API}/aircrafts/${id}`).then(res => {
         if (res) {
-            selected_aircraft = res;
-            console.log(selected_aircraft.name);
+            selected_aircraft['description'] = res;
+            console.log(selected_aircraft);
             $("#aircraft-div")
                 .prop('hidden', false)
                 .empty()
@@ -336,12 +428,12 @@ function aircraftSelected(id) {
                     `
                     <div class="row">
                         <div class="col-md-6">
-                            <img src="${selected_aircraft.img_url}" width="220">
+                            <img src="${selected_aircraft.description.img_url}" width="220">
                         </div>
                         <div class="col-md-6">
-                            <p>Name: ${selected_aircraft.name}</p>
-                            <p> Max speed: ${selected_aircraft.max_speed} km/h</p>
-                            <p>Fuel consumption: ${selected_aircraft.fuel_consumption} kg/h</p>
+                            <p>Name: ${selected_aircraft.description.name}</p>
+                            <p> Max speed: ${selected_aircraft.description.max_speed} km/h</p>
+                            <p>Fuel consumption: ${selected_aircraft.description.fuel_consumption} kg/h</p>
                             <div class="form-group">
                                 <label for="fuelLoadInput">Fuel load in kg</label>
                                 <input type="number" class="form-control" onkeyup='validateRangeForm()' id="fuelLoadInput" placeholder="Enter fuel load" required>
@@ -359,6 +451,14 @@ function validateRangeForm() {
         $("#range-button").prop('disabled', false);
     } else {
         $("#range-button").prop('disabled', true);
+    }
+}
+
+function validateFlightWeatherForm() {
+    if ($("#sourceAirportSelect2").prop("selectedIndex") != 0 && $("#destinationAirportSelect2").prop("selectedIndex") != 0) {
+        $("#weather-button").prop('disabled', false);
+    } else {
+        $("#weather-button").prop('disabled', true);
     }
 }
 
@@ -387,15 +487,24 @@ $('#aircraft-select').on('change', (e) => {
 
 $(document).on("click", "#range-button", (e) => {
     const fuelLoad = $("#fuelLoadInput").val();
-    const timeToConsumeAll = fuelLoad / selected_aircraft.fuel_consumption;
-    const maxDistance = selected_aircraft.max_speed * timeToConsumeAll;
+    const timeToConsumeAll = fuelLoad / selected_aircraft.description.fuel_consumption;
+    const maxDistance = selected_aircraft.description.max_speed * timeToConsumeAll;
 
-    console.log(maxDistance);
+    selected_aircraft['fuelLoad'] = fuelLoad;
+    selected_aircraft['timeToConsumeAll'] = timeToConsumeAll;
+    selected_aircraft['maxDistance'] = maxDistance;
 
     addLayer("aircrafts-range", {
         sourceId: $("#sourceAirportSelect option:selected").val(),
         destinationId: $("#destinationAirportSelect option:selected").val(),
         maxDistance
+    })
+})
+
+$(document).on("click", "#weather-button", (e) => {
+    addLayer('flight-weather', {
+        sourceId: $("#sourceAirportSelect2 option:selected").val(),
+        destinationId: $("#destinationAirportSelect2 option:selected").val()
     })
 })
 
