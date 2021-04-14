@@ -1,30 +1,30 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../services/db');
+const aircraftService = require('../services/aircraftService');
 
-router.get('/names', (req, res) => {
-    const query = "SELECT id, name FROM airplanes"
 
-    db.query(query, (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(400).json(err);
-        }
-        res.json(result.rows);
-    });
+router.get('/names', async (req, res) => {
+    try {
+        const data = await aircraftService.getAircraftNames();
+        res.json(data);
+    }
+    catch (err) {
+        console.log(err);
+        res.status(400).json(err);
+    }
 })
 
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
     const id = req.params.id;
-    const query = `SELECT * FROM airplanes WHERE id=${id}`;
-
-    db.query(query, (err, result) => {
-        if (err) {
-            console.log(err);
-            return res.status(400).json(err);
-        }
-        res.json(result.rows[0]);
-    });
+    
+    try {
+        const data = await aircraftService.getAircraft(id);
+        res.json(data);
+    }
+    catch (err) {
+        console.log(err);
+        res.status(400).json(err);
+    }
 })
 
 

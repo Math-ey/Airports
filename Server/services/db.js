@@ -1,10 +1,20 @@
-const pg = require('pg');
-require('dotenv/config');
+const { Pool } = require('pg');
+const config = require('../config');
+const pool = new Pool(config.db);
 
-const connectionString = "postgres://postgres:1234@localhost:5432/pdt";
+/**
+ * Query the database using the pool
+ * @param {*} query 
+ * @param {*} params 
+ * 
+ * @see https://node-postgres.com/features/pooling#single-query
+ */
+async function query(query, params) {
+    const { rows, fields } = await pool.query(query, params);
 
-const pgClient = new pg.Client(connectionString);
+    return rows;
+}
 
-pgClient.connect();
-
-module.exports = pgClient;
+module.exports = {
+    query
+}
