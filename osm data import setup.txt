@@ -1,0 +1,17 @@
+Setup for Windows
+
+1. Download PostgreSQL from https://www.enterprisedb.com/downloads/postgres-postgresql-downloads and install Postgis via Stack Builder
+2. Open PgAdmin, set password, create db and run script "CREATE EXTENSION postgis;"
+3. Download your desired osm data, i.e. Great Britain from https://download.geofabrik.de/europe/great-britain.html
+4. Download osm2pgsql https://osm2pgsql.org/doc/install.html#installing-on-windows and extract the files into folder
+5. Import the osm data into postgres db via osm2pgsql using powershell or cmd with following command: 
+
+osm2pgsql.exe -U postgres -W -H localhost -d "name_of_db" "name_of_osm_data_file"
+
+if the error about cache occurs, use option -C <somebignumberlike12000>   to increase cache size
+
+References:
+https://www.programmersought.com/article/90862177157/
+https://www.facebook.com/groups/226835274193060/permalink/914083492134898
+
+the to load Great Britain data took about 18 minutes
